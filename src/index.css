@@ -1,0 +1,310 @@
+@import "tailwindcss";
+
+/* ─── Design System — Google / Looker Studio Dark ─────────────────────── */
+:root {
+  /* Surfaces */
+  --bg:          #0d0e13;
+  --surface-1:   #14151c;
+  --surface-2:   #1c1d27;
+  --surface-3:   #23242f;
+  --surface-hover: #2a2b38;
+
+  /* Borders */
+  --border:       #25263280;
+  --border-strong: #383a4d;
+
+  /* Text */
+  --text-primary:   #e8eaed;
+  --text-secondary: #9aa0a6;
+  --text-muted:     #5f6368;
+
+  /* Brand — Google Blue */
+  --blue:       #4285f4;
+  --blue-dim:   #1a3a6e;
+  --blue-hover: #5194f7;
+
+  /* Semantic */
+  --green:   #34a853;
+  --yellow:  #fbbc04;
+  --red:     #ea4335;
+  --orange:  #ff6d00;
+  --purple:  #9b59b6;
+
+  /* RGB values for rgba() usage */
+  --blue-rgb:   66, 133, 244;
+  --red-rgb:    234, 67, 53;
+  --green-rgb:  52, 168, 83;
+
+  /* Elevation shadows */
+  --shadow-1: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-2: 0 2px 8px rgba(0,0,0,0.5);
+  --shadow-3: 0 4px 16px rgba(0,0,0,0.6);
+
+  /* Chart colors (Dark Default) */
+  --chart-axis: rgba(255, 255, 255, 0.4);
+  --chart-grid: rgba(255, 255, 255, 0.05);
+  --chart-text: #e8eaed;
+  --chart-label: #9aa0a6;
+}
+
+@theme {
+  --font-sans: "Inter", "Google Sans", system-ui, -apple-system, sans-serif;
+}
+
+/* ─── Light mode overrides ─────────────────────────────────────────────── */
+body.light {
+  --bg:            #f8f9fa;
+  --surface-1:     #ffffff;
+  --surface-2:     #f1f3f4;
+  --surface-3:     #e8eaed;
+  --surface-hover: #e2e5e9;
+
+  --border:        rgba(0,0,0,0.10);
+  --border-strong: rgba(0,0,0,0.18);
+
+  --text-primary:   #202124;
+  --text-secondary: #5f6368;
+  --text-muted:     #9aa0a6;
+
+  --blue-dim:   #e8f0fe;
+
+  --chart-axis: #5f6368;
+  --chart-grid: #e8eaed;
+  --chart-text: #202124;
+  --chart-label: #5f6368;
+}
+
+/* ─── Base ─────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* ─── Panel (replaces glass-panel) ────────────────────────────────────── */
+.panel {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: var(--shadow-1);
+}
+
+/* legacy alias */
+.glass-panel {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: var(--shadow-1);
+}
+
+/* ─── Metric Card (replaces glass-card / Card3D) ──────────────────────── */
+.metric-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.metric-card:hover {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-2);
+}
+
+/* legacy alias */
+.glass-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glass-card:hover {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-2);
+  transform: none;
+}
+
+/* ─── Navigation Sidebar ───────────────────────────────────────────────── */
+.sidebar {
+  background: var(--surface-1);
+  border-right: 1px solid var(--border);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition: background 0.12s ease, color 0.12s ease;
+  position: relative;
+}
+
+.nav-item:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  background: var(--blue-dim);
+  color: var(--blue);
+  border-left: 3px solid var(--blue);
+  padding-left: 13px; /* compensate 3px border */
+}
+
+/* ─── Buttons ──────────────────────────────────────────────────────────── */
+.btn-primary {
+  background: var(--blue);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  letter-spacing: 0.01em;
+}
+
+.btn-primary:hover { background: var(--blue-hover); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.btn-ghost:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+/* ─── Badges / Tags ────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.badge-red    { background: rgba(234,67,53,0.15);  color: #f28b82; }
+.badge-yellow { background: rgba(251,188,4,0.15);  color: #fdd663; }
+.badge-green  { background: rgba(52,168,83,0.15);  color: #81c995; }
+.badge-blue   { background: rgba(66,133,244,0.15); color: #8ab4f8; }
+.badge-gray   { background: rgba(255,255,255,0.07); color: var(--text-secondary); }
+
+/* ─── Section Title ────────────────────────────────────────────────────── */
+.section-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+/* ─── Divider ──────────────────────────────────────────────────────────── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0;
+}
+
+/* ─── Scrollbar ────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4a4b5e; }
+
+/* ─── Recharts overrides ───────────────────────────────────────────────── */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: var(--surface-3) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 4px !important;
+  box-shadow: var(--shadow-3) !important;
+}
+
+.recharts-text { fill: var(--text-secondary) !important; font-size: 11px !important; }
+.recharts-cartesian-axis-tick-value { fill: var(--text-secondary) !important; }
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: var(--border) !important;
+}
+
+/* ─── Date inputs: adapt to theme ─────────────────────────────────────── */
+input[type="date"] {
+  color-scheme: dark;
+}
+body.light input[type="date"] {
+  color-scheme: light;
+}
+
+/* ─── Flip Card ────────────────────────────────────────────────────────── */
+.flip-card-container {
+  perspective: 1000px;
+  cursor: pointer;
+}
+
+.flip-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.flip-card-container.flipped .flip-card-inner {
+  transform: rotateY(180deg);
+}
+
+.flip-card-front,
+.flip-card-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.flip-card-back {
+  transform: rotateY(180deg);
+}
+
+/* Light mode badge fixes */
+body.light .badge-gray {
+  background: rgba(0,0,0,0.07);
+  color: var(--text-secondary);
+}
+
+/* ─── Deprecated — keep for migration ─────────────────────────────────── */
+.tilt-effect { transition: none; }
+.tilt-effect:hover { transform: none; }

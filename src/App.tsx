@@ -1,0 +1,302 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { RasffData } from './lib/mockData';
+import { fetchAlerts, mapAlertsToRasff } from './lib/csvParser';
+import { filterData, FilterOptions, exportToCSV } from './lib/dataEngine';
+import { calculateStats } from './lib/statistics';
+import { FilterBar } from './components/analytics/FilterBar';
+import { StatsSummary } from './components/analytics/StatsSummary';
+import { TrendChart } from './components/analytics/TrendChart';
+import { CorrelationMatrix } from './components/analytics/CorrelationMatrix';
+import { AIAnalysisCenter } from './components/ai/AIAnalysisCenter';
+import { DistributionChart } from './components/analytics/DistributionChart';
+import { NotificationsTable } from './components/analytics/NotificationsTable';
+import { RiskHeatmap } from './components/analytics/RiskHeatmap';
+import { AnomalyDetector } from './components/analytics/AnomalyDetector';
+import { SeasonalChart } from './components/analytics/SeasonalChart';
+import { HypothesisPanel, HypothesisType } from './components/predictive/HypothesisPanel';
+import { HypothesisResult } from './components/predictive/HypothesisResult';
+import { ForecastChart } from './components/predictive/ForecastChart';
+import { testH1, testH2, testH3, testH4, testH5 } from './lib/hypothesisEngine';
+import { GuidePanel } from './components/layout/GuidePanel';
+import { PageLayout } from './components/layout/PageLayout';
+import { PageSection } from './components/navigation/NavMenu';
+import { motion } from 'motion/react';
+import { Zap, Download, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
+import { getLatestWeekStats } from './lib/temporalEngine';
+import { GlobalScoreCard } from './components/overview/GlobalScoreCard';
+import { WeeklyDeltaBadge } from './components/overview/WeeklyDeltaBadge';
+import { CumulativeChart } from './components/temporal/CumulativeChart';
+import { WeeklyDeltaChart } from './components/temporal/WeeklyDeltaChart';
+import { EmergenceTimeline } from './components/temporal/EmergenceTimeline';
+import { ParetoChart } from './components/stats/ParetoChart';
+import { CountryRankingTable } from './components/stats/CountryRankingTable';
+import { WorldMap } from './components/geo/WorldMap';
+import { CountryDetailPanel } from './components/geo/CountryDetailPanel';
+import { CountryStats } from './lib/geoEngine';
+import { CountryEvolutionChart } from './components/geo/CountryEvolutionChart';
+import { SankeyDiagram } from './components/geo/SankeyDiagram';
+import { ChordDiagram } from './components/geo/ChordDiagram';
+import { AnimatePresence } from 'motion/react';
+
+// ─── Data loading ─────────────────────────────────────────────────────────────
+
+type LoadState = 'idle' | 'loading' | 'error' | 'done';
+
+function LoadingScreen() {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      height: '100vh', gap: 16,
+      background: 'var(--bg)', color: 'var(--text-secondary)',
+    }}>
+      <Loader2 size={32} style={{ color: 'var(--blue)', animation: 'spin 1s linear infinite' }} />
+      <p style={{ margin: 0, fontSize: 14 }}>Chargement des alertes RASFF…</p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    </div>
+  );
+}
+
+function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      height: '100vh', gap: 16,
+      background: 'var(--bg)',
+    }}>
+      <AlertCircle size={32} style={{ color: 'var(--red)' }} />
+      <p style={{ margin: 0, fontSize: 14, color: 'var(--text-secondary)' }}>
+        Erreur de chargement : {message}
+      </p>
+      <button className="btn-primary" onClick={onRetry}>Réessayer</button>
+    </div>
+  );
+}
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
+
+function App() {
+  const [activeSection, setActiveSection]       = useState<PageSection>('overview');
+  const [filters, setFilters]                   = useState<FilterOptions>({});
+  const [selectedCountry, setSelectedCountry]   = useState<CountryStats | null>(null);
+  const [selectedHypothesis, setSelectedHypothesis] = useState<HypothesisType>('H1');
+
+  const [loadState, setLoadState]   = useState<LoadState>('idle');
+  const [errorMsg, setErrorMsg]     = useState('');
+  const [rasffData, setRasffData]   = useState<RasffData[]>([]);
+
+  const load = useCallback(async (force = false) => {
+    setLoadState('loading');
+    setErrorMsg('');
+    try {
+      const alerts = await fetchAlerts(force);
+      setRasffData(mapAlertsToRasff(alerts));
+      setLoadState('done');
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? 'Erreur inconnue');
+      setLoadState('error');
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  // ── Derived data ────────────────────────────────────────────────────────────
+  const filteredData = useMemo(() => filterData(rasffData, filters), [rasffData, filters]);
+  const stats        = useMemo(() => calculateStats(filteredData), [filteredData]);
+  const categories            = useMemo(() => Array.from(new Set(rasffData.map(d => d.category))).sort(), [rasffData]);
+  const origins               = useMemo(() => Array.from(new Set(rasffData.map(d => d.origin))).sort(), [rasffData]);
+  const notifyingCountries    = useMemo(() => Array.from(new Set(rasffData.map(d => d.notifying_country).filter(Boolean))).sort(), [rasffData]);
+
+  // ── All hooks must be called before any conditional return ─────────────────
+  const currentResult = useMemo(() => {
+    switch (selectedHypothesis) {
+      case 'H1': return testH1(filteredData);
+      case 'H2': return testH2(filteredData);
+      case 'H3': return testH3(filteredData);
+      case 'H4': return testH4(filteredData);
+      case 'H5': return testH5(filteredData);
+      default:   return testH1(filteredData);
+    }
+  }, [selectedHypothesis, filteredData]);
+
+  // ── Loading / error guards (after all hooks) ────────────────────────────────
+  if (loadState === 'idle' || loadState === 'loading') return <LoadingScreen />;
+  if (loadState === 'error') return <ErrorScreen message={errorMsg} onRetry={() => load(true)} />;
+
+  // ── Header extras ────────────────────────────────────────────────────────────
+  const headerContent = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+        {rasffData.length.toLocaleString('fr-FR')} alertes
+      </span>
+      <button
+        className="btn-ghost"
+        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '5px 10px' }}
+        onClick={() => load(true)}
+        title="Forcer le rechargement"
+      >
+        <RefreshCw size={13} /> Actualiser
+      </button>
+      <button
+        className="btn-ghost"
+        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '5px 10px' }}
+        onClick={() => exportToCSV(filteredData, `rasff_${new Date().toISOString().split('T')[0]}`)}
+      >
+        <Download size={13} /> Export CSV
+      </button>
+    </div>
+  );
+
+  // ── Section renderers ────────────────────────────────────────────────────────
+
+  const renderOverview = () => {
+    const latestStats = getLatestWeekStats(filteredData);
+    return (
+      <div className="space-y-6">
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12 }}>
+          <FilterBar options={filters} setOptions={setFilters} availableCategories={categories} availableOrigins={origins} availableNotifyingCountries={notifyingCountries} />
+          <WeeklyDeltaBadge latestStats={latestStats} />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 12 }}>
+          <GlobalScoreCard data={filteredData} recentDelta={latestStats.delta} />
+          <StatsSummary stats={stats} />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+          <TrendChart data={filteredData} title="Évolution des alertes" />
+
+          <div className="panel p-4">
+            <p className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Zap size={13} style={{ color: 'var(--red)' }} /> Dernières notifications
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {filteredData.slice(0, 5).map((item) => (
+                <div key={item.id} style={{
+                  padding: '10px 12px',
+                  background: 'var(--surface-2)',
+                  borderLeft: `3px solid ${item.risk_level === 'Serious' ? 'var(--red)' : item.risk_level === 'Medium' ? 'var(--yellow)' : 'var(--green)'}`,
+                }}>
+                  <p style={{ margin: '0 0 4px', fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {item.product}
+                  </p>
+                  <p style={{ margin: '0 0 2px', fontSize: 11, color: 'var(--text-secondary)' }}>
+                    {item.hazard.substring(0, 60)}
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                    <span className="badge badge-gray">{item.origin}</span>
+                    <span className="badge badge-gray">{item.notifying_country}</span>
+                    <span className={`badge ${item.risk_level === 'Serious' ? 'badge-red' : item.risk_level === 'Medium' ? 'badge-yellow' : 'badge-green'}`}>
+                      {item.risk_level}
+                    </span>
+                  </div>
+                  <p style={{ margin: '4px 0 0', fontSize: 10, color: 'var(--text-muted)' }}>
+                    Réf: {item.id} · {item.status}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <NotificationsTable data={filteredData} />
+      </div>
+    );
+  };
+
+  const renderTemporal = () => (
+    <div className="space-y-6">
+      <FilterBar options={filters} setOptions={setFilters} availableCategories={categories} availableOrigins={origins} availableNotifyingCountries={notifyingCountries} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <CumulativeChart data={filteredData} />
+        <WeeklyDeltaChart data={filteredData} />
+      </div>
+      <EmergenceTimeline data={filteredData} />
+    </div>
+  );
+
+  const renderGeo = () => (
+    <div className="space-y-6">
+      <FilterBar options={filters} setOptions={setFilters} availableCategories={categories} availableOrigins={origins} availableNotifyingCountries={notifyingCountries} />
+      <WorldMap data={filteredData} onCountryClick={setSelectedCountry} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <CountryEvolutionChart data={filteredData} />
+        <ChordDiagram data={filteredData} />
+      </div>
+      <SankeyDiagram data={filteredData} />
+      <AnimatePresence>
+        {selectedCountry && (
+          <CountryDetailPanel stats={selectedCountry} onClose={() => setSelectedCountry(null)} />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+
+  const renderStatistical = () => (
+    <div className="space-y-6">
+      <FilterBar options={filters} setOptions={setFilters} availableCategories={categories} availableOrigins={origins} availableNotifyingCountries={notifyingCountries} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <DistributionChart data={filteredData} stats={stats} />
+        <SeasonalChart data={filteredData} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <AnomalyDetector data={filteredData} stats={stats} />
+        <RiskHeatmap data={filteredData} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <ParetoChart data={filteredData} dimension="origin" title="Origines" />
+        <CountryRankingTable data={filteredData} />
+      </div>
+      <CorrelationMatrix data={filteredData} />
+    </div>
+  );
+
+  const renderPredictive = () => (
+    <div className="space-y-6">
+      <FilterBar options={filters} setOptions={setFilters} availableCategories={categories} availableOrigins={origins} availableNotifyingCountries={notifyingCountries} />
+      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 12 }}>
+        <HypothesisPanel selectedH={selectedHypothesis} onSelect={setSelectedHypothesis} />
+        <div className="space-y-6">
+          <HypothesisResult result={currentResult} />
+          {selectedHypothesis === 'H5' && <ForecastChart data={filteredData} />}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAI = () => <AIAnalysisCenter data={filteredData} />;
+
+  const renderGuide = () => <GuidePanel />;
+
+  // ── Layout ───────────────────────────────────────────────────────────────────
+  return (
+    <PageLayout
+      activeSection={activeSection}
+      onSectionChange={setActiveSection}
+      extraHeaderContent={headerContent}
+    >
+      <motion.div
+        key={activeSection}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        {activeSection === 'overview'    && renderOverview()}
+        {activeSection === 'temporal'    && renderTemporal()}
+        {activeSection === 'geo'         && renderGeo()}
+        {activeSection === 'statistical' && renderStatistical()}
+        {activeSection === 'predictive'  && renderPredictive()}
+        {activeSection === 'ai'          && renderAI()}
+        {activeSection === 'guide'       && renderGuide()}
+      </motion.div>
+    </PageLayout>
+  );
+}
+
+export default App;

@@ -12,7 +12,7 @@ import { StatsSummary } from './components/analytics/StatsSummary';
 import { TrendChart } from './components/analytics/TrendChart';
 import { CorrelationMatrix } from './components/analytics/CorrelationMatrix';
 import { AIAnalysisCenter } from './components/ai/AIAnalysisCenter';
-import { DistributionChart } from './components/analytics/DistributionChart';
+import { DistributionCharts } from './components/analytics/DistributionCharts';
 import { NotificationsTable } from './components/analytics/NotificationsTable';
 import { RiskHeatmap } from './components/analytics/RiskHeatmap';
 import { AnomalyDetector } from './components/analytics/AnomalyDetector';
@@ -242,7 +242,7 @@ function App() {
       <FilterBar options={filters} setOptions={setFilters} availableCategories={categories} availableOrigins={origins} availableNotifyingCountries={notifyingCountries} />
       
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <DistributionChart data={filteredData} stats={stats} />
+        <DistributionCharts data={filteredData} />
         <SeasonalChart data={filteredData} />
       </div>
 

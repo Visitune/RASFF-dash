@@ -27,15 +27,25 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   extraHeaderContent,
 }) => {
   const [light, setLight] = useState(() => localStorage.getItem('theme') === 'light');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
 
   useEffect(() => {
     document.body.classList.toggle('light', light);
     localStorage.setItem('theme', light ? 'light' : 'dark');
   }, [light]);
 
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
-      <NavMenu activeSection={activeSection} onSectionChange={onSectionChange} />
+      <NavMenu 
+        activeSection={activeSection} 
+        onSectionChange={onSectionChange} 
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(c => !c)}
+      />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Top header */}

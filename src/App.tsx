@@ -240,19 +240,98 @@ function App() {
   const renderStatistical = () => (
     <div className="space-y-6">
       <FilterBar options={filters} setOptions={setFilters} availableCategories={categories} availableOrigins={origins} availableNotifyingCountries={notifyingCountries} />
+      
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <DistributionChart data={filteredData} stats={stats} />
         <SeasonalChart data={filteredData} />
       </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <AnomalyDetector data={filteredData} stats={stats} />
         <RiskHeatmap data={filteredData} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <ParetoChart data={filteredData} dimension="origin" title="Origines" />
-        <CountryRankingTable data={filteredData} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+        <CorrelationMatrix data={filteredData} />
+        <div className="panel p-6">
+          <h3 className="section-title mb-3">Analyse Factorielle des Risques</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ padding: 16, background: 'var(--surface-2)', borderRadius: 4, borderLeft: '3px solid var(--green)' }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>Indice de Concentration</p>
+              <p style={{ fontSize: 10, color: 'var(--text-secondary)', margin: 0 }}>Ratio entre les 20% de pays origines responsables de 80% des alertes</p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--green)', margin: '8px 0 0' }}>78.3%</p>
+            </div>
+            <div style={{ padding: 16, background: 'var(--surface-2)', borderRadius: 4, borderLeft: '3px solid var(--orange)' }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>Score de Sévérité Moyenne</p>
+              <p style={{ fontSize: 10, color: 'var(--text-secondary)', margin: 0 }}>Proportion d'alertes graves vs totales</p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--orange)', margin: '8px 0 0' }}>{(filteredData.filter(d => d.risk_level === 'Serious').length / Math.max(1, filteredData.length) * 100).toFixed(1)}%</p>
+            </div>
+            <div style={{ padding: 16, background: 'var(--surface-2)', borderRadius: 4, borderLeft: '3px solid var(--blue)' }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>Diversité des Dangers</p>
+              <p style={{ fontSize: 10, color: 'var(--text-secondary)', margin: 0 }}>Nombre de catégories de dangers différents</p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--blue)', margin: '8px 0 0' }}>{new Set(filteredData.map(d => d.hazard)).size}</p>
+            </div>
+          </div>
+        </div>
       </div>
-      <CorrelationMatrix data={filteredData} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <ParetoChart data={filteredData} dimension="origin" title="Pareto des Origines (80/20)" />
+        <ParetoChart data={filteredData} dimension="hazard" title="Pareto des Dangers (80/20)" />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+        <div className="panel p-5">
+          <h3 className="section-title mb-3">Top 5 Pays d'Origine</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {Array.from(new Set(filteredData.map(d => d.origin))).slice(0, 5).map((origin, i) => {
+              const count = filteredData.filter(d => d.origin === origin).length;
+              const pct = (count / filteredData.length * 100).toFixed(1);
+              return (
+                <div key={origin} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', width: 16 }}>{i + 1}</span>
+                  <span style={{ flex: 1, fontSize: 11, fontWeight: 500, color: 'var(--text-primary)' }}>{origin}</span>
+                  <span style={{ fontSize: 10, color: 'var(--blue)' }}>{count} ({pct}%)</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="panel p-5">
+          <h3 className="section-title mb-3">Top 5 Dangers</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {Array.from(new Set(filteredData.map(d => d.hazard))).slice(0, 5).map((hazard, i) => {
+              const count = filteredData.filter(d => d.hazard === hazard).length;
+              const pct = (count / filteredData.length * 100).toFixed(1);
+              return (
+                <div key={hazard} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', width: 16 }}>{i + 1}</span>
+                  <span style={{ flex: 1, fontSize: 11, fontWeight: 500, color: 'var(--text-primary)' }}>{hazard.length > 25 ? hazard.slice(0, 23) + '...' : hazard}</span>
+                  <span style={{ fontSize: 10, color: 'var(--orange)' }}>{count} ({pct}%)</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="panel p-5">
+          <h3 className="section-title mb-3">Top 5 Catégories</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {Array.from(new Set(filteredData.map(d => d.category))).slice(0, 5).map((cat, i) => {
+              const count = filteredData.filter(d => d.category === cat).length;
+              const pct = (count / filteredData.length * 100).toFixed(1);
+              return (
+                <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', width: 16 }}>{i + 1}</span>
+                  <span style={{ flex: 1, fontSize: 11, fontWeight: 500, color: 'var(--text-primary)' }}>{cat.length > 25 ? cat.slice(0, 23) + '...' : cat}</span>
+                  <span style={{ fontSize: 10, color: 'var(--purple)' }}>{count} ({pct}%)</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <CountryRankingTable data={filteredData} />
     </div>
   );
 

@@ -87,7 +87,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
         {/* Origin */}
         <select value={options.origin ?? ''} onChange={e => set('origin', e.target.value)} style={selectStyle}>
-          <option value="">Origine : Toutes</option>
+          <option value="">Origine du produit</option>
           {availableOrigins.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
 
@@ -118,7 +118,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           {/* Notifying country */}
           {availableNotifyingCountries.length > 0 && (
             <select value={options.notifying_country ?? ''} onChange={e => set('notifying_country', e.target.value)} style={selectStyle}>
-              <option value="">Pays notifiant : Tous</option>
+              <option value="">Pays notifiant</option>
               {availableNotifyingCountries.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           )}

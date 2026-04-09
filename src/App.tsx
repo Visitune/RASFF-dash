@@ -32,6 +32,7 @@ import { WeeklyDeltaBadge } from './components/overview/WeeklyDeltaBadge';
 import { CumulativeChart } from './components/temporal/CumulativeChart';
 import { WeeklyDeltaChart } from './components/temporal/WeeklyDeltaChart';
 import { EmergenceTimeline } from './components/temporal/EmergenceTimeline';
+import { MovingAverageChart, DayOfWeekChart, MonthlyChart, YearQuarterChart } from './components/temporal/TemporalCharts';
 import { ParetoChart } from './components/stats/ParetoChart';
 import { CountryRankingTable } from './components/stats/CountryRankingTable';
 import { WorldMap } from './components/geo/WorldMap';
@@ -212,10 +213,46 @@ function App() {
   const renderTemporal = () => (
     <div className="space-y-6">
       <FilterBar options={filters} setOptions={setFilters} availableCategories={categories} availableOrigins={origins} availableNotifyingCountries={notifyingCountries} />
+      
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <CumulativeChart data={filteredData} />
-        <WeeklyDeltaChart data={filteredData} />
+        <div className="panel p-6">
+          <h3 className="section-title mb-1">Moyenne Mobile (7 jours)</h3>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
+            Lissage du bruit pour identifier les tendances longues
+          </p>
+          <MovingAverageChart data={filteredData} />
+        </div>
       </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <WeeklyDeltaChart data={filteredData} />
+        <div className="panel p-6">
+          <h3 className="section-title mb-1">Jour de la Semaine</h3>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
+            Distribution des alertes par jour - identifie les pics récurrents
+          </p>
+          <DayOfWeekChart data={filteredData} />
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="panel p-6">
+          <h3 className="section-title mb-1">Mois de l'Année</h3>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
+            Saisonnalité : détection des périodes haute/basse
+          </p>
+          <MonthlyChart data={filteredData} />
+        </div>
+        <div className="panel p-6">
+          <h3 className="section-title mb-1">Année / Trimestre</h3>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
+            Vue macro: évolution annuelle avec trend
+          </p>
+          <YearQuarterChart data={filteredData} />
+        </div>
+      </div>
+
       <EmergenceTimeline data={filteredData} />
     </div>
   );

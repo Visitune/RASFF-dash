@@ -23,7 +23,7 @@ export const ParetoChart: React.FC<ParetoChartProps> = ({ data, dimension, title
   const chartData = paretoAnalysis(data, dimension).slice(0, 15);
 
   return (
-    <div className="panel p-6 h-[400px]">
+    <div className="panel p-6" style={{ height: 400 }}>
       <h3 className="section-title">{title} (Loi de Pareto 80/20)</h3>
       <ResponsiveContainer width="100%" height="85%">
         <ComposedChart data={chartData} margin={{ bottom: 20 }}>

@@ -77,7 +77,7 @@ export const CountryDetailPanel: React.FC<CountryDetailPanelProps> = ({ stats, o
               <ShieldAlert size={16} className="text-rose-400" />
               <h4 className="text-xs font-black text-white uppercase tracking-widest">Hazards Principaux</h4>
            </div>
-           <div className="h-[200px]">
+           <div style={{ height: 200 }}>
              <ResponsiveContainer width="100%" height="100%">
                <BarChart layout="vertical" data={hazardData}>
                  <XAxis type="number" hide />
@@ -102,7 +102,7 @@ export const CountryDetailPanel: React.FC<CountryDetailPanelProps> = ({ stats, o
               <Package size={16} className="text-indigo-400" />
               <h4 className="text-xs font-black text-white uppercase tracking-widest">Catégories de Produits</h4>
            </div>
-           <div className="h-[200px]">
+           <div style={{ height: 200 }}>
              <ResponsiveContainer width="100%" height="100%">
                <BarChart layout="vertical" data={categoryData}>
                  <XAxis type="number" hide />

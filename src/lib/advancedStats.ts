@@ -89,3 +89,113 @@ export const getCooccurrenceData = (data: RasffData[]) => {
 
   return { matrix, topCategories, topHazards };
 };
+// ---------- H8 : Composite Risk Scoring ----------
+
+export interface CategoryRiskScore {
+  category: string;
+  frequency: number;       // Alertes sur les 8 dernières semaines
+  severityRatio: number;   // Ratio alertes graves (0-1)
+  trend: number;           // Pente regression normalisée (-1 à +1)
+  isEmerging: boolean;     // Première apparition < 4 semaines
+  compositeScore: number;  // Score final 0-100
+  rawCount: number;        // Volume total
+}
+
+// Pente de régression linéaire simplifiée pour une série de valeurs
+function calculateSimpleSlope(values: number[]): number {
+  const n = values.length;
+  if (n < 2) return 0;
+  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+  values.forEach((y, x) => {
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumXX += x * x;
+  });
+  const denom = n * sumXX - sumX * sumX;
+  if (denom === 0) return 0;
+  const slope = (n * sumXY - sumX * sumY) / denom;
+  const mean = sumY / n;
+  // Normalisation : ramener la pente à un ratio par rapport à la moyenne
+  return mean === 0 ? 0 : Math.max(-1, Math.min(1, slope / (mean * 0.5 || 1)));
+}
+
+export function computeCategoryRiskScores(data: RasffData[]): CategoryRiskScore[] {
+  const now = new Date();
+  
+  // Fenêtres temporelles
+  const eightWeeksAgo = new Date(now);
+  eightWeeksAgo.setDate(now.getDate() - 56);
+  const fourWeeksAgo = new Date(now);
+  fourWeeksAgo.setDate(now.getDate() - 28);
+  
+  // Données récentes pour le calcul de fréquence et gravité
+  const recentData = data.filter(d => {
+    if (!d.date) return false;
+    const dt = new Date(d.date);
+    return !isNaN(dt.getTime()) && dt >= eightWeeksAgo;
+  });
+  
+  // Groupement par catégorie
+  const catMap = new Map<string, RasffData[]>();
+  recentData.forEach(d => {
+    const rows = catMap.get(d.category) || [];
+    rows.push(d);
+    catMap.set(d.category, rows);
+  });
+  
+  // Volume total (toute période)
+  const totalCounts: Record<string, number> = {};
+  data.forEach(d => { totalCounts[d.category] = (totalCounts[d.category] || 0) + 1; });
+  
+  const entries = Array.from(catMap.entries());
+  const maxFreq = entries.length > 0 ? Math.max(...entries.map(e => e[1].length)) : 1;
+  
+  const results: CategoryRiskScore[] = [];
+  
+  catMap.forEach((rows, category) => {
+    if (rows.length < 2) return; // Signal insuffisant
+    
+    // 1. Fréquence normalisée (Score sur 40)
+    const frequency = rows.length;
+    const freqScore = (frequency / maxFreq) * 40;
+    
+    // 2. Gravité (Score sur 30)
+    const seriousCount = rows.filter(d => 
+      d.risk_level.toLowerCase().includes('serious') || 
+      d.risk_level.toLowerCase().includes('high')
+    ).length;
+    const severityRatio = seriousCount / frequency;
+    const severityScore = severityRatio * 30;
+    
+    // 3. Tendance (Score sur 20)
+    const weekCounts: Record<string, number> = {};
+    rows.forEach(d => {
+      const dt = new Date(d.date);
+      const wk = `${dt.getFullYear()}-W${Math.ceil((dt.getMonth() + 1) * 4)}`;
+      weekCounts[wk] = (weekCounts[wk] || 0) + 1;
+    });
+    const trend = calculateSimpleSlope(Object.values(weekCounts));
+    const trendScore = Math.max(0, trend) * 20; // Seule la hausse pénalise le score
+    
+    // 4. Émergence (10 points si < 4 semaines)
+    const firstDate = rows.reduce((min, d) => {
+      const dt = new Date(d.date);
+      return dt < min ? dt : min;
+    }, new Date());
+    const isEmerging = firstDate >= fourWeeksAgo;
+    const emergingScore = isEmerging ? 10 : 0;
+    
+    results.push({
+      category,
+      frequency,
+      severityRatio: Math.round(severityRatio * 100) / 100,
+      trend: Math.round(trend * 100) / 100,
+      isEmerging,
+      compositeScore: Math.round(freqScore + severityScore + trendScore + emergingScore),
+      rawCount: totalCounts[category] || 0
+    });
+  });
+  
+  return results.sort((a, b) => b.compositeScore - a.compositeScore);
+}

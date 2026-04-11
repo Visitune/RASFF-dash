@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Beaker, TrendingUp, AlertTriangle, ListFilter, Calendar } from 'lucide-react';
+import { Beaker, TrendingUp, AlertTriangle, ListFilter, Calendar, GitBranch, Target } from 'lucide-react';
 
-export type HypothesisType = 'H1' | 'H2' | 'H3' | 'H4' | 'H5';
+export type HypothesisType = 'H1' | 'H2' | 'H3' | 'H4' | 'H5' | 'H6' | 'H8';
 
 interface HypothesisPanelProps {
   selectedH: HypothesisType;
@@ -44,6 +44,20 @@ const hypotheses = [
     title: 'Tendance de volume',
     desc: 'Le volume hebdomadaire est-il en hausse structurelle ?',
     method: 'Régression linéaire sur volumes quotidiens'
+  },
+  {
+    id: 'H6' as HypothesisType,
+    icon: GitBranch,
+    title: 'Propagation géo.',
+    desc: 'Les alertes se propagent-elles temporellement entre pays ?',
+    method: 'Cross-corrélation avec décalage (lag weeks)'
+  },
+  {
+    id: 'H8' as HypothesisType,
+    icon: Target,
+    title: 'Risque composite',
+    desc: 'Score multidimensionnel pour prioriser les catégories.',
+    method: 'Scoring pondéré: Vol. + Gravité + Trend + Émergence'
   },
 ];
 

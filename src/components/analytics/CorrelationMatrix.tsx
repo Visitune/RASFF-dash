@@ -1,6 +1,7 @@
 import React from 'react';
 import { RasffData } from '../../lib/mockData';
 import { crossData } from '../../lib/dataEngine';
+import { Activity } from 'lucide-react';
 
 interface CorrelationMatrixProps {
   data: RasffData[];
@@ -37,7 +38,13 @@ export const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data }) =>
   return (
     <div className="panel p-6 overflow-x-auto custom-scrollbar">
       <div className="mb-4">
-        <h3 className="section-title mb-1">Co-occurrence Origine × Danger (Top 8)</h3>
+        <h3 className="section-title mb-1 flex items-center gap-2">
+          <Activity size={14} style={{ color: 'var(--blue)' }} /> Co-occurrence Origine × Danger (Top 8)
+        </h3>
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 20 }}>
+          Analyse de co-occurrence. Les cellules sombres indiquent des combinaisons fréquentes. 
+          Permet d'isoler des patterns récurrents (ex: un danger spécifique toujours lié au même pays).
+        </p>
         <p className="text-[10px] text-muted font-bold">
           Nombre de notifications combinant chaque pays d'origine et catégorie de danger.
           Plus la cellule est foncée, plus la combinaison est fréquente.

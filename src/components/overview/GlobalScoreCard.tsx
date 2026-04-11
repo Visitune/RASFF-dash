@@ -9,6 +9,25 @@ interface GlobalScoreCardProps {
   recentDelta: number;
 }
 
+const CountUp: React.FC<{ value: number }> = ({ value }) => {
+  const [displayValue, setDisplayValue] = React.useState(0);
+  React.useEffect(() => {
+    let start = 0;
+    const duration = 1200;
+    const startTime = performance.now();
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeOutQuad = (t: number) => t * (2 - t);
+      const current = progress === 1 ? value : start + (value - start) * easeOutQuad(progress);
+      setDisplayValue(current);
+      if (progress < 1) requestAnimationFrame(animate);
+    };
+    requestAnimationFrame(animate);
+  }, [value]);
+  return <>{Math.round(displayValue)}</>;
+};
+
 export const GlobalScoreCard: React.FC<GlobalScoreCardProps> = ({ data, recentDelta }) => {
   const score = calculateGlobalRiskScore(data, recentDelta);
   const isHighRisk = score > 60;
@@ -27,7 +46,7 @@ export const GlobalScoreCard: React.FC<GlobalScoreCardProps> = ({ data, recentDe
 
       <div className="flex items-baseline gap-2">
         <span className="text-5xl font-black leading-none tracking-tighter" style={{ color }}>
-          {isNaN(score) ? '—' : score}
+          {isNaN(score) ? '—' : <CountUp value={score} />}
         </span>
         <span className="text-sm font-bold text-muted uppercase">/ 100</span>
         <div className="ml-auto">

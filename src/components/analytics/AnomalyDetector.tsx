@@ -54,14 +54,19 @@ export const AnomalyDetector: React.FC<AnomalyDetectorProps> = ({ data, stats })
           <ScatterChart margin={{ top: 8, right: 20, bottom: 8, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
             <XAxis
-              dataKey="index"
-              type="number"
-              name="Séquence"
+              dataKey="date"
+              type="category"
+              name="Date"
               stroke="var(--chart-axis)"
               tick={{ fill: 'var(--chart-text)', fontSize: 10 }}
               tickLine={false}
               axisLine={false}
-              label={{ value: 'Jours (chronologique)', position: 'insideBottom', offset: -4, fontSize: 9, fill: 'var(--text-muted)' }}
+              tickFormatter={(val) => {
+                if (!val) return '';
+                const parts = val.split('-');
+                return parts.length >= 3 ? `${parts[2]}/${parts[1]}` : val;
+              }}
+              label={{ value: 'Période (chronologique)', position: 'insideBottom', offset: -4, fontSize: 9, fill: 'var(--text-muted)' }}
             />
             <YAxis
               dataKey="count"

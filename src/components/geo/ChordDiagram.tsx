@@ -95,6 +95,19 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({ data }) => {
       <div className="w-full max-w-[600px]">
         <svg ref={svgRef} width="600" height="600" viewBox="0 0 600 600" />
       </div>
+      <div className="mt-8 p-4 bg-purple/5 rounded border border-purple/10">
+        <h4 className="text-[10px] font-black uppercase tracking-widest text-purple mb-2">Guide d'interprétation</h4>
+        <ul className="space-y-2 m-0 p-0 list-none">
+          <li className="text-[11px] text-secondary flex gap-2">
+            <span className="text-purple font-bold">●</span>
+            <strong>Largeur des Arcs :</strong> Plus le ruban est large, plus le volume d'échanges (notifications) entre ces deux pays est élevé.
+          </li>
+          <li className="text-[11px] text-secondary flex gap-2">
+            <span className="text-purple font-bold">●</span>
+            <strong>Direction du Flux :</strong> La couleur de l'arc correspond au pays d'origine du risque.
+          </li>
+        </ul>
+      </div>
     </div>
   );
 };

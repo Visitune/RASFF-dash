@@ -1,4 +1,6 @@
 import { RasffData } from './mockData';
+import { computePropagation } from './propagationEngine';
+import { computeCategoryRiskScores } from './advancedStats';
 
 export type HypothesisVerdict = 'confirmee' | 'infirmee' | 'incertaine';
 
@@ -268,5 +270,63 @@ export const testH5 = (data: RasffData[]): HypothesisResultData => {
     confidenceScore: clamp(Math.round(Math.abs(delta) * 260 + Math.abs(slope) * 12), 18, 93),
     summary: `8 dernieres semaines: ${recentAvg.toFixed(1)} alertes/semaine contre ${previousAvg.toFixed(1)} auparavant. Variation: ${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(1)}%. Pente recente: ${slope >= 0 ? '+' : ''}${slope.toFixed(2)}.`,
     chartData: weekly.slice(-12).map(item => ({ name: item.week, value: item.volume })),
+  };
+};
+// ---------- H6 : Propagation Temporelle ----------
+
+export const testH6 = (data: RasffData[]): HypothesisResultData => {
+  const links = computePropagation(data);
+  const highConfLinks = links.filter(l => l.confidence === 'high');
+  const medConfLinks = links.filter(l => l.confidence === 'medium');
+  
+  let verdict: HypothesisVerdict = 'incertaine';
+  if (highConfLinks.length >= 3) verdict = 'confirmee';
+  else if (links.length === 0) verdict = 'infirmee';
+  
+  const topLink = links[0];
+  const count = links.length;
+  
+  return {
+    id: 'H6',
+    verdict,
+    confidenceScore: Math.min(90, Math.max(15, count * 4 + highConfLinks.length * 15)),
+    summary: topLink
+      ? `${count} relations de propagation détectées (${highConfLinks.length} haute conf.). Signal principal : ${topLink.from} → ${topLink.to} (délai: ${topLink.lagWeeks} sem., r=${topLink.correlation}).`
+      : 'Aucune propagation temporelle significative détectée entre les pays notifiants.',
+    chartData: links.slice(0, 8).map(l => ({
+      name: `${l.from} → ${l.to}`,
+      value: Math.round(l.correlation * 100),
+      lag: l.lagWeeks,
+      confidence: l.confidence
+    }))
+  };
+};
+
+// ---------- H8 : Radar de Risque Composite ----------
+
+export const testH8 = (data: RasffData[]): HypothesisResultData => {
+  const scores = computeCategoryRiskScores(data);
+  const critical = scores.filter(s => s.compositeScore >= 65);
+  const emerging = scores.filter(s => s.isEmerging);
+  
+  let verdict: HypothesisVerdict = 'incertaine';
+  if (critical.length >= 2) verdict = 'confirmee';
+  else if (scores.length > 0 && critical.length === 0) verdict = 'infirmee';
+  
+  const top = scores[0];
+  
+  return {
+    id: 'H8',
+    verdict,
+    confidenceScore: Math.min(92, Math.max(10, critical.length * 20 + scores.length * 2)),
+    summary: top
+      ? `${critical.length} catégories en zone de risque critique (score ≥ 65). ${emerging.length} nouveaux segments identifiés. Priorité maximale : "${top.category}" (score ${top.compositeScore}/100).`
+      : 'Données insuffisantes sur les 8 dernières semaines pour établir un radar de risque fiable.',
+    chartData: scores.slice(0, 6).map(s => ({
+      name: s.category.substring(0, 15),
+      value: s.compositeScore,
+      freq: s.frequency,
+      sev: Math.round(s.severityRatio * 100)
+    }))
   };
 };

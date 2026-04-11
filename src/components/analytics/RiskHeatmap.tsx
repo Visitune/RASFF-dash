@@ -62,7 +62,11 @@ export const RiskHeatmap: React.FC<RiskHeatmapProps> = ({ data }) => {
   return (
     <div className="panel p-6 overflow-x-auto custom-scrollbar">
       <div className="mb-4">
-        <h3 className="section-title mb-1">Thermique Origine × Catégorie</h3>
+        <h3 className="section-title mb-1">Concentration des Risques par Catégorie</h3>
+      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 20 }}>
+        Visualisation par intensité calorifique. Permet d'identifier immédiatement quels couples 
+        "Produit x Danger" saturent le système d'alerte, facilitant la priorisation des contrôles.
+      </p>
         <p className="text-[10px] text-muted font-bold">
           Intensité = volume × poids du risque (grave=3, moyen=2, mineur=1). Rouge = combinaison prioritaire.
         </p>

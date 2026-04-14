@@ -26,8 +26,34 @@ const CACHE_KEY = 'rasff_alerts_cache';
 const CACHE_TS_KEY = 'rasff_alerts_cache_ts';
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+const RASFF_EXPORT_URL =
+  'https://webgate.ec.europa.eu/rasff-window/backend/public/notification/search/export/en/';
+
 const SHEET_URL =
   'https://docs.google.com/spreadsheets/d/1OvFp8TLFhLB5BxcK2ZzmvMMWFoPGYJ-Mipb888j1JLI/export?format=csv';
+
+async function fetchCsvFromRasff(): Promise<string> {
+  const response = await fetch(RASFF_EXPORT_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json, text/plain, */*',
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    body: JSON.stringify({
+      date: { startRange: '', endRange: '' },
+      countries: {},
+      type: {},
+      notificationStatus: {},
+      product: {},
+      risk: {},
+      reference: '',
+      subject: '',
+    }),
+  });
+  if (!response.ok) throw new Error(`RASFF API HTTP ${response.status}`);
+  return response.text();
+}
 
 function parseRow(alert: any): Alert {
   const dateStr: string = alert.date ?? '';
@@ -88,35 +114,47 @@ export async function fetchAlerts(forceRefresh = false): Promise<Alert[]> {
     }
   }
 
-  try {
-    const response = await fetch(SHEET_URL);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const csvText = await response.text();
+  let csvText: string | null = null;
 
-    return await new Promise((resolve, reject) => {
-      Papa.parse<any>(csvText, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          const data: Alert[] = results.data.map(parseRow);
-          try {
-            localStorage.setItem(
-              CACHE_KEY,
-              JSON.stringify(data.map(({ parsedDate, ...rest }) => rest))
-            );
-            localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
-          } catch {
-            // Ignore cache write failures.
-          }
-          resolve(data);
-        },
-        error: reject,
-      });
-    });
-  } catch (error) {
-    console.warn('Remote RASFF fetch failed, falling back to bundled dataset.', error);
+  try {
+    csvText = await fetchCsvFromRasff();
+    console.info('RASFF data loaded from official API.');
+  } catch (rasffError) {
+    console.warn('RASFF API fetch failed, trying Google Sheets fallback.', rasffError);
+    try {
+      const response = await fetch(SHEET_URL);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      csvText = await response.text();
+      console.info('RASFF data loaded from Google Sheets.');
+    } catch (sheetError) {
+      console.warn('Google Sheets fetch failed, falling back to bundled dataset.', sheetError);
+    }
+  }
+
+  if (!csvText) {
     return mockRasffData.map(mockRowToAlert);
   }
+
+  return new Promise((resolve, reject) => {
+    Papa.parse<any>(csvText!, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const data: Alert[] = results.data.map(parseRow);
+        try {
+          localStorage.setItem(
+            CACHE_KEY,
+            JSON.stringify(data.map(({ parsedDate, ...rest }) => rest))
+          );
+          localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+        } catch {
+          // Ignore cache write failures.
+        }
+        resolve(data);
+      },
+      error: reject,
+    });
+  });
 }
 
 function classificationToRisk(c: string): RasffData['risk_level'] {

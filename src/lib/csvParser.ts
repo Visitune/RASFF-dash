@@ -28,9 +28,6 @@ const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const RASFF_PROXY_URL = '/api/rasff-export';
 
-const SHEET_URL =
-  'https://docs.google.com/spreadsheets/d/1OvFp8TLFhLB5BxcK2ZzmvMMWFoPGYJ-Mipb888j1JLI/export?format=csv';
-
 function parseRow(alert: any): Alert {
   const dateStr: string = alert.date ?? '';
   const parts = dateStr.split(' ');
@@ -98,15 +95,7 @@ export async function fetchAlerts(forceRefresh = false): Promise<Alert[]> {
     csvText = await response.text();
     console.info('RASFF data loaded via proxy.');
   } catch (proxyError) {
-    console.warn('RASFF proxy failed, trying Google Sheets fallback.', proxyError);
-    try {
-      const response = await fetch(SHEET_URL);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      csvText = await response.text();
-      console.info('RASFF data loaded from Google Sheets.');
-    } catch (sheetError) {
-      console.warn('All remote sources failed, falling back to bundled dataset.', sheetError);
-    }
+    console.warn('Proxy failed, falling back to bundled dataset.', proxyError);
   }
 
   if (!csvText) {

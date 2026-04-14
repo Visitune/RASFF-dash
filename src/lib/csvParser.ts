@@ -22,9 +22,9 @@ export interface Alert {
   notification_url?: string;
 }
 
-const CACHE_KEY = 'rasff_alerts_cache';
-const CACHE_TS_KEY = 'rasff_alerts_cache_ts';
-const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const CACHE_KEY = 'rasff_alerts_cache_v2';
+const CACHE_TS_KEY = 'rasff_alerts_cache_ts_v2';
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 1 day
 
 const RASFF_PROXY_URL = '/api/rasff-export';
 

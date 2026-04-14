@@ -26,34 +26,10 @@ const CACHE_KEY = 'rasff_alerts_cache';
 const CACHE_TS_KEY = 'rasff_alerts_cache_ts';
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-const RASFF_EXPORT_URL =
-  'https://webgate.ec.europa.eu/rasff-window/backend/public/notification/search/export/en/';
+const RASFF_PROXY_URL = '/api/rasff-export';
 
 const SHEET_URL =
   'https://docs.google.com/spreadsheets/d/1OvFp8TLFhLB5BxcK2ZzmvMMWFoPGYJ-Mipb888j1JLI/export?format=csv';
-
-async function fetchCsvFromRasff(): Promise<string> {
-  const response = await fetch(RASFF_EXPORT_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json, text/plain, */*',
-      'X-Requested-With': 'XMLHttpRequest',
-    },
-    body: JSON.stringify({
-      date: { startRange: '', endRange: '' },
-      countries: {},
-      type: {},
-      notificationStatus: {},
-      product: {},
-      risk: {},
-      reference: '',
-      subject: '',
-    }),
-  });
-  if (!response.ok) throw new Error(`RASFF API HTTP ${response.status}`);
-  return response.text();
-}
 
 function parseRow(alert: any): Alert {
   const dateStr: string = alert.date ?? '';
@@ -117,17 +93,19 @@ export async function fetchAlerts(forceRefresh = false): Promise<Alert[]> {
   let csvText: string | null = null;
 
   try {
-    csvText = await fetchCsvFromRasff();
-    console.info('RASFF data loaded from official API.');
-  } catch (rasffError) {
-    console.warn('RASFF API fetch failed, trying Google Sheets fallback.', rasffError);
+    const response = await fetch(RASFF_PROXY_URL);
+    if (!response.ok) throw new Error(`Proxy HTTP ${response.status}`);
+    csvText = await response.text();
+    console.info('RASFF data loaded via proxy.');
+  } catch (proxyError) {
+    console.warn('RASFF proxy failed, trying Google Sheets fallback.', proxyError);
     try {
       const response = await fetch(SHEET_URL);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       csvText = await response.text();
       console.info('RASFF data loaded from Google Sheets.');
     } catch (sheetError) {
-      console.warn('Google Sheets fetch failed, falling back to bundled dataset.', sheetError);
+      console.warn('All remote sources failed, falling back to bundled dataset.', sheetError);
     }
   }
 

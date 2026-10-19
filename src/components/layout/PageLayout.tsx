@@ -170,7 +170,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
         </header>
 
         {/* Main content — responsive padding + max-width */}
-          <div className="p-4 sm:px-6 lg:px-10 2xl:px-16 w-full">>
+          <div className="p-4 sm:px-6 lg:px-10 2xl:px-16 w-full">
             <motion.div
               key={activeSection}
               initial={{ opacity: 0, y: 10 }}

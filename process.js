@@ -1,9 +1,8 @@
-// ============================================================
-// Generate mockData.ts and rasff_data.tsv from FOOD-SAFETY-HORIZON-SCAN
-// (the repo that scrapes RASFF 2x/day via GitHub Actions)
-// Usage: node process.js
-// ============================================================
-
+/**
+ * Regenerate rasff_data.tsv + src/lib/mockData.ts
+ * Source: RASFF Window public API (live)
+ * Usage: node process.js
+ */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,100 +10,129 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = __dirname;
 
-const RECALLS_JSON_URL =
-  'https://raw.githubusercontent.com/Visitune/FOOD-SAFETY-HORIZON-SCAN/main/docs/data/recalls.json';
+const API_URL = 'https://webgate.ec.europa.eu/rasff-window/backend/public/notification/search/consolidated/en/';
+const PAGE_SIZE = 50;
+const MAX_PAGES = 10;
 
-function classificationToRisk(classification) {
-  const c = (classification || '').toLowerCase();
-  if (c.includes('not serious')) return 'Low';
-  if (c.includes('border rejection')) return 'Medium';
-  if (c.includes('alert')) return 'Serious';
-  if (c.includes('information')) return 'Medium';
+const API_HEADERS = {
+  'Accept': 'application/json, text/plain, */*',
+  'Content-Type': 'application/json',
+  'Origin': 'https://webgate.ec.europa.eu',
+  'Referer': 'https://webgate.ec.europa.eu/rasff-window/screen/list',
+  'X-Requested-With': 'XMLHttpRequest',
+};
+
+const MONITORED_CLASSIFICATIONS = [
+  'alert notification',
+  'border rejection',
+  'information notification for attention',
+  'information notification for follow-up',
+];
+
+const MONITORED_TYPES = ['food'];
+
+const PATHOGENS = [
+  'Listeria monocytogenes', 'Salmonella', 'Escherichia coli', 'Norovirus',
+  'Clostridium botulinum', 'Shigella', 'Campylobacter', 'Staphylococcus',
+  'Vibrio', 'Bacillus cereus', 'Yersinia', 'Hepatitis', 'Cyclospora',
+  'Cryptosporidium', 'E. coli', 'STEC', 'Shigatoxin', 'Listeria',
+];
+
+function extractPathogen(subject) {
+  if (!subject) return '';
+  for (const p of PATHOGENS) {
+    if (subject.toLowerCase().includes(p.toLowerCase())) return p;
+  }
+  return '';
+}
+
+function riskDecisionToLevel(desc) {
+  const s = (desc || '').toLowerCase();
+  if (s.includes('not serious') || s.includes('no risk')) return 'Low';
+  if (s.includes('serious')) return 'Serious';
+  if (s.includes('potential') || s.includes('undecided')) return 'Medium';
   return 'Medium';
 }
 
-function parseReasonField(raw) {
-  const s = raw || '';
-  const catMatch = s.match(/category:\s*([^;\n]+?)(?:;|$)/i);
-  const riskMatch = s.match(/risk:\s*([^;\n]+?)(?:;|$)/i);
-  const classMatch = s.match(/classification:\s*([^;\n]+?)(?:;|$)/i);
-  return {
-    category: catMatch ? catMatch[1].trim() : '',
-    risk: riskMatch ? riskMatch[1].trim() : '',
-    classification: classMatch ? classMatch[1].trim() : '',
-  };
+function toDisplayDate(raw) {
+  if (!raw) return '';
+  const m = raw.match(/^([0-9]{2})-([0-9]{2})-([0-9]{4})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]} 00:00:00` : '';
 }
 
-function parseCompanyField(raw) {
-  const s = raw || '';
-  const originMatch = s.match(/Origin:\s*([^|]+?)\s*\|\s*Notifying:/i);
-  const countryMatch = s.match(/Notifying:\s*(.+)$/i);
-  return {
-    origin: originMatch ? originMatch[1].trim() : '',
-    notifyingCountry: countryMatch ? countryMatch[1].trim() : '',
-  };
+function toIsoDate(raw) {
+  if (!raw) return '';
+  const m = raw.match(/^([0-9]{2})-([0-9]{2})-([0-9]{4})/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
 }
 
-function refFromNotes(notes) {
-  const m = (notes || '').match(/#(\d{4}\.\d+)/);
-  return m ? m[1] : '';
+function valueFromRisk(risk) {
+  if (risk === 'Serious') return 3;
+  if (risk === 'Medium') return 2;
+  return 1;
 }
 
-function toDmyDate(dateRaw) {
-  const m = (dateRaw || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return dateRaw || '';
-  return `${m[3]}-${m[2]}-${m[1]} 00:00:00`;
-}
-
-function toIsoDate(dateRaw) {
-  const m = (dateRaw || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return '';
-  return `${m[1]}-${m[2]}-${m[3]}`;
+async function fetchAllNotifications() {
+  const all = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const payload = { parameters: { pageNumber: page, itemsPerPage: PAGE_SIZE } };
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: API_HEADERS,
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) break;
+    const body = await resp.json();
+    const notifs = body.notifications || [];
+    if (!notifs.length) break;
+    all.push(...notifs);
+  }
+  return all;
 }
 
 async function main() {
-  console.log('Fetching RASFF data from FOOD-SAFETY-HORIZON-SCAN...');
+  console.log('Fetching RASFF data from official RASFF Window API...');
+  const notifications = await fetchAllNotifications();
+  console.log(`Total notifications: ${notifications.length}`);
 
-  const upstream = await fetch(RECALLS_JSON_URL, {
-    headers: { Accept: 'application/json' },
+  const filtered = notifications.filter((n) => {
+    const ptype = (n.productType && n.productType.description || '').toLowerCase();
+    if (!MONITORED_TYPES.includes(ptype)) return false;
+    const classif = (n.notificationClassification && n.notificationClassification.description || '').toLowerCase();
+    return MONITORED_CLASSIFICATIONS.some((mc) => classif.includes(mc));
   });
-  if (!upstream.ok) throw new Error(`Upstream HTTP ${upstream.status}`);
+  console.log(`After filter: ${filtered.length}`);
 
-  const data = (await upstream.json()).filter(
-    (row) => row.Source && String(row.Source).toLowerCase().includes('rasff'),
-  );
-  console.log(`RASFF entries found: ${data.length}`);
-
-  // --- rasff_data.tsv ---
   const header = [
-    'reference', 'category', 'type', 'subject', 'date', 'product', 'hazard',
-    'origin', 'notifying_country', 'risk_level', 'status',
-    'notification_id', 'notification_url', 'value',
+    'reference','category','type','subject','date','notifying_country',
+    'classification','risk_decision','distribution','forAttention',
+    'forFollowUp','operator','origin','hazards','notification_id',
+    'notification_url',
   ].join('\t');
 
-  const rows = data.map((entry) => {
-    const ref = refFromNotes(entry.Notes);
-    const parsed = parseReasonField(entry.Reason);
-    const company = parseCompanyField(entry.Company);
-    const type = parsed.classification || entry.Class || 'Unknown';
-    const riskLevel = classificationToRisk(parsed.classification || entry.Class);
-    const value = { Serious: 3, Medium: 2, Low: 1 }[riskLevel] ?? 1;
-    const notifId = entry.URL ? (entry.URL.split('/').pop() || '') : '';
+  const rows = filtered.map((n) => {
+    const subject = (n.subject || '').trim();
+    const classification = (n.notificationClassification && n.notificationClassification.description || '').trim();
+    const riskDecision = (n.riskDecision && n.riskDecision.description || '').trim();
+    const origin = n.originCountries && n.originCountries[0] && n.originCountries[0].organizationName || '';
+    const notifying = n.notifyingCountry && n.notifyingCountry.organizationName || '';
+    const notifId = String(n.notifId || '');
+    const url = notifId ? `https://webgate.ec.europa.eu/rasff-window/screen/notification/${notifId}` : '';
+
     return [
-      ref,
-      parsed.category || 'Unknown',
-      type,
-      entry.Product || '',
-      toDmyDate(entry.Date),
-      entry.Product || '',
-      entry.Pathogen || 'Unknown',
-      company.origin || 'Unknown',
-      company.notifyingCountry || 'Unknown',
-      riskLevel,
-      type,
+      n.reference || '',
+      n.productCategory && n.productCategory.description || 'Unknown',
+      classification,
+      subject,
+      toDisplayDate(n.ecValidationDate || ''),
+      notifying || 'Unknown',
+      riskDecisionToLevel(riskDecision),
+      riskDecision,
+      '', '', '', '',
+      origin || 'Unknown',
+      extractPathogen(subject),
       notifId,
-      entry.URL || '',
-      String(value),
+      url,
     ].join('\t');
   });
 
@@ -112,26 +140,28 @@ async function main() {
   fs.writeFileSync(tsvPath, [header, ...rows].join('\n') + '\n', 'utf8');
   console.log(`Wrote ${tsvPath} (${rows.length} rows)`);
 
-  // --- src/lib/mockData.ts ---
-  const mockRows = data.map((entry) => {
-    const parsed = parseReasonField(entry.Reason);
-    const company = parseCompanyField(entry.Company);
-    const type = parsed.classification || entry.Class || 'Unknown';
-    const riskLevel = classificationToRisk(parsed.classification || entry.Class);
-    const value = { Serious: 3, Medium: 2, Low: 1 }[riskLevel] ?? 1;
+  const mockRows = filtered.map((n) => {
+    const subject = (n.subject || '').trim();
+    const classification = (n.notificationClassification && n.notificationClassification.description || '').trim();
+    const riskDecision = (n.riskDecision && n.riskDecision.description || '').trim();
+    const origin = n.originCountries && n.originCountries[0] && n.originCountries[0].organizationName || 'Unknown';
+    const notifying = n.notifyingCountry && n.notifyingCountry.organizationName || 'Unknown';
+    const notifId = String(n.notifId || '');
+    const url = notifId ? `https://webgate.ec.europa.eu/rasff-window/screen/notification/${notifId}` : '';
+
     return JSON.stringify({
-      id: refFromNotes(entry.Notes),
-      date: toIsoDate(entry.Date),
-      category: parsed.category || 'Unknown',
-      product: entry.Product || '',
-      hazard: entry.Pathogen || '',
-      origin: company.origin || 'Unknown',
-      notifying_country: company.notifyingCountry || 'Unknown',
-      risk_level: riskLevel,
-      status: type,
-      value,
-      notification_id: entry.URL ? entry.URL.split('/').pop() : undefined,
-      notification_url: entry.URL || undefined,
+      id: n.reference || '',
+      date: toIsoDate(n.ecValidationDate || ''),
+      category: n.productCategory && n.productCategory.description || 'Unknown',
+      product: subject,
+      hazard: extractPathogen(subject),
+      origin: origin,
+      notifying_country: notifying,
+      risk_level: riskDecisionToLevel(riskDecision),
+      status: classification,
+      value: valueFromRisk(riskDecisionToLevel(riskDecision)),
+      notification_id: notifId || undefined,
+      notification_url: url || undefined,
     });
   }).join(',\n');
 
@@ -153,18 +183,18 @@ async function main() {
   notification_url?: string;
 }
 
-// AUTO-GENERATED from FOOD-SAFETY-HORIZON-SCAN (docs/data/recalls.json)
+// AUTO-GENERATED from RASFF Window API
 // by \`node process.js\`. Do not edit by hand.
 export const mockRasffData: RasffData[] = [
 ${mockRows}
 ];
 `,
-    'utf8',
+    'utf8'
   );
-  console.log(`Wrote ${mockPath} (${data.length} rows)`);
+  console.log(`Wrote ${mockPath} (${filtered.length} rows)`);
 }
 
-main().catch((err) => {
+main().catch(err => {
   console.error('Error:', err);
   process.exit(1);
 });

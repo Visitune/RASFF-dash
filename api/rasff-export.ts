@@ -1,159 +1,150 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Source de données mise à jour 2×/jour par le scraper RASFF de FOOD-SAFETY-HORIZON-SCAN
-const RECALLS_JSON_URL =
-  'https://raw.githubusercontent.com/Visitune/FOOD-SAFETY-HORIZON-SCAN/main/docs/data/recalls.json';
+// ---------------------------------------------------------------------------
+// Source : API publique officielle RASFF Window (Commission Européenne)
+// https://webgate.ec.europa.eu/rasff-window
+// Aucune auth, réponse en temps réel (dernières notifications publiées).
+// ---------------------------------------------------------------------------
+const API_URL =
+  'https://webgate.ec.europa.eu/rasff-window/backend/public/notification/search/consolidated/en/';
 
-function parseReasonField(reason: string): {
-  category: string;
-  risk: string;
-  classification: string;
-} {
-  if (!reason) return { category: '', risk: '', classification: '' };
+const PAGE_SIZE = 50;
+const MAX_PAGES = 10; // 500 notifications ≈ 3 mois d'historique
 
-  // Extraire les champs après les marqueurs
-  const catMatch = reason.match(/category:\s*([^;\n]+?)(?:;|$)/i);
-  const riskMatch = reason.match(/risk:\s*([^;\n]+?)(?:;|$)/i);
-  const classMatch = reason.match(/classification:\s*([^;\n]+?)(?:;|$)/i);
+const API_HEADERS = {
+  Accept: 'application/json, text/plain, */*',
+  'Content-Type': 'application/json',
+  Origin: 'https://webgate.ec.europa.eu',
+  Referer: 'https://webgate.ec.europa.eu/rasff-window/screen/list',
+  'X-Requested-With': 'XMLHttpRequest',
+};
 
-  return {
-    category: catMatch ? catMatch[1].trim() : '',
-    risk: riskMatch ? riskMatch[1].trim() : '',
-    classification: classMatch ? classMatch[1].trim() : '',
-  };
+const MONITORED_CLASSIFICATIONS = [
+  'alert notification',
+  'border rejection',
+  'information notification for attention',
+  'information notification for follow-up',
+];
+
+const MONITORED_TYPES = ['food'];
+
+const PATHOGENS = [
+  'Listeria monocytogenes', 'Salmonella', 'Escherichia coli', 'Norovirus',
+  'Clostridium botulinum', 'Shigella', 'Campylobacter', 'Staphylococcus',
+  'Vibrio', 'Bacillus cereus', 'Yersinia', 'Hepatitis', 'Cyclospora',
+  'Cryptosporidium', 'E. coli', 'STEC', 'Shigatoxin', 'Listeria',
+];
+
+function extractPathogen(subject: string): string {
+  if (!subject) return '';
+  for (const p of PATHOGENS) {
+    if (subject.toLowerCase().includes(p.toLowerCase())) return p;
+  }
+  return '';
 }
 
-function parseCompanyField(company: string): { origin: string; notifyingCountry: string } {
-  if (!company) return { origin: '', notifyingCountry: '' };
-
-  const originMatch = company.match(/Origin:\s*([^|]+?)\s*\|\s*Notifying:/i);
-  const countryMatch = company.match(/Notifying:\s*(.+)$/i);
-
-  return {
-    origin: originMatch ? originMatch[1].trim() : '',
-    notifyingCountry: countryMatch ? countryMatch[1].trim() : '',
-  };
-}
-
-function classificationToRiskLevel(classification: string): string {
-  const c = (classification || '').toLowerCase();
-  if (c.includes('not serious')) return 'Low';
-  if (c.includes('border rejection')) return 'Medium';
-  if (c.includes('alert')) return 'Serious';
-  if (c.includes('information')) return 'Medium';
+/** RASFF riskDecision -> niveau de risque du dashboard */
+function riskDecisionToLevel(desc: string): string {
+  const s = (desc || '').toLowerCase();
+  if (s.includes('not serious') || s.includes('no risk')) return 'Low';
+  if (s.includes('serious')) return 'Serious';
+  if (s.includes('potential') || s.includes('undecided')) return 'Medium';
   return 'Medium';
 }
 
-function riskLevelToValue(riskLevel: string): number {
-  if (riskLevel === 'Serious') return 3;
-  if (riskLevel === 'High') return 2.5;
-  if (riskLevel === 'Medium') return 2;
-  return 1;
+/** Convertit "17-10-2026 21:09:08" -> "2026-10-17" */
+function toIsoDate(raw: string): string {
+  if (!raw) return '';
+  const m = raw.match(/^(\d{2})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
 }
 
-/**
- * Transforme une entrée JSON du FOOD-SAFETY-HORIZON-SCAN en ligne CSV
- * compatible avec le format attendu par le frontend de RASFF-dash.
- */
-function rasffEntryToCsvRow(entry: Record<string, any>): string[] {
-  const dateRaw = entry.Date ?? '';
-  // Normaliser la date au format DD-MM-YYYY HH:MM:SS (attendu par csvParser.ts)
-  let formattedDate = dateRaw;
-  const isoMatch = dateRaw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (isoMatch) {
-    formattedDate = `${isoMatch[3]}-${isoMatch[2]}-${isoMatch[1]} 00:00:00`;
-  }
+/** "17-10-2026 21:09:08" -> "17-10-2026 00:00:00" (format attendu par csvParser.ts) */
+function toDisplayDate(raw: string): string {
+  if (!raw) return '';
+  const m = raw.match(/^(\d{2})-(\d{2})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]} 00:00:00` : '';
+}
 
-  const parsed = parseReasonField(entry.Reason);
-  const companyInfo = parseCompanyField(entry.Company);
+const CSV_HEADER = [
+  'reference', 'category', 'type', 'subject', 'date', 'notifying_country',
+  'classification', 'risk_decision', 'distribution', 'forAttention',
+  'forFollowUp', 'operator', 'origin', 'hazards', 'notification_id',
+  'notification_url',
+];
 
-  // Extraire notification_id de l'URL RASFF
-  const notificationId = entry.URL
-    ? entry.URL.split('/').pop() || ''
+function notificationToRow(n: any): string[] {
+  const subject = (n.subject || '').trim();
+  const classification = (n.notificationClassification?.description || '').trim();
+  const riskDecision = (n.riskDecision?.description || '').trim();
+  const origin = n.originCountries?.[0]?.organizationName || '';
+  const notifying = n.notifyingCountry?.organizationName || '';
+  const notifId = String(n.notifId || '');
+  const url = notifId
+    ? `https://webgate.ec.europa.eu/rasff-window/screen/notification/${notifId}`
     : '';
 
-  // Extraire la référence RASFF (ex: 2026.7838) depuis Notes
-  const refMatch = (entry.Notes || '').match(/#([\d]{4}\.[\d]+)/);
-  const reference = refMatch ? refMatch[1] : notificationId;
-
-  const risk_level = classificationToRiskLevel(parsed.classification || entry.Class);
-  const type = parsed.classification || entry.Class || 'Unknown';
-
   return [
-    reference,                                           // reference
-    parsed.category || 'Unknown',                        // category
-    type,                                                // type
-    entry.Product || '',                                 // subject
-    formattedDate,                                       // date (DD-MM-YYYY HH:MM:SS)
-    entry.Product || '',                                 // subject (duplicate for compat)
-    entry.Country || companyInfo.origin || '',           // origin
-    companyInfo.notifyingCountry || 'Unknown',           // notifying_country
-    risk_level,                                          // classification
-    parsed.risk || risk_level,                          // risk_decision
-    '',                                                  // distribution
-    '',                                                  // forAttention
-    '',                                                  // forFollowUp
-    '',                                                  // operator
-    notificationId,                                       // notification_id
-    entry.URL || '',                                     // notification_url
-    String(riskLevelToValue(risk_level)),                // value (pour heatmaps etc.)
+    n.reference || '',                                          // reference
+    n.productCategory?.description || 'Unknown',                // category
+    classification,                                            // type
+    subject,                                                   // subject
+    toDisplayDate(n.ecValidationDate || ''),                    // date
+    notifying || 'Unknown',                                     // notifying_country
+    riskDecisionToLevel(riskDecision),                          // classification
+    riskDecision,                                               // risk_decision
+    '',                                                        // distribution
+    '',                                                        // forAttention
+    '',                                                        // forFollowUp
+    '',                                                        // operator
+    origin || 'Unknown',                                       // origin
+    extractPathogen(subject),                                  // hazards
+    notifId,                                                   // notification_id
+    url,                                                       // notification_url
   ];
 }
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {
-    const upstream = await fetch(RECALLS_JSON_URL, {
-      headers: { Accept: 'application/json' },
+    const collected: any[] = [];
+
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const payload = { parameters: { pageNumber: page, itemsPerPage: PAGE_SIZE } };
+
+      const upstream = await fetch(API_URL, {
+        method: 'POST',
+        headers: API_HEADERS,
+        body: JSON.stringify(payload),
+      } as any);
+
+      if (!upstream.ok) {
+        console.warn(`RASFF API page ${page} failed: ${upstream.status}`);
+        break;
+      }
+
+      const body: any = await upstream.json();
+      const notifs = body.notifications || [];
+      if (!notifs.length) break;
+
+      collected.push(...notifs);
+    }
+
+    // Filtres : type "food" + classifications surveillées
+    const filtered = collected.filter((n) => {
+      const ptype = (n.productType?.description || '').toLowerCase();
+      if (!MONITORED_TYPES.includes(ptype)) return false;
+      const classif = (n.notificationClassification?.description || '').toLowerCase();
+      return MONITORED_CLASSIFICATIONS.some((mc) => classif.includes(mc));
     });
 
-    if (!upstream.ok) {
-      return res
-        .status(upstream.status)
-        .json({ error: `Upstream error ${upstream.status}` });
-    }
+    const rows = filtered.map(notificationToRow);
+    const csv = [CSV_HEADER.join('\t'), ...rows.map((r) => r.join('\t'))].join('\n');
 
-    const data: Record<string, any>[] = await upstream.json();
-
-    // Filtrer uniquement les entrées RASFF (EU)
-    const rasffEntries = data.filter(
-      (row) => row.Source && row.Source.toLowerCase().includes('rasff'),
-    );
-
-    if (rasffEntries.length === 0) {
-      return res.status(404).json({ error: 'No RASFF data found upstream' });
-    }
-
-    // En-tête CSV identique au format rasff_data.tsv attendu par process.js
-    const header = [
-      'reference',
-      'category',
-      'type',
-      'subject',
-      'date',
-      'product',
-      'origin',
-      'notifying_country',
-      'classification',
-      'risk_decision',
-      'distribution',
-      'forAttention',
-      'forFollowUp',
-      'operator',
-      'notification_id',
-      'notification_url',
-      'value',
-    ].join('\t');
-
-    const csvBody = [
-      header,
-      ...rasffEntries.map((entry) => rasffEntryToCsvRow(entry).join('\t')),
-    ].join('\n');
-
-    // Cache CDN : 1h frais, stale jusqu'à 24h pendant revalidation
+    // Cache CDN : 1h frais, stale-while-revalidate 24h
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
     res.setHeader('Content-Type', 'text/tab-separated-values; charset=utf-8');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.send(csvBody);
+    res.send(csv);
   } catch (err) {
     console.error('RASFF proxy error:', err);
     res.status(502).json({ error: 'Failed to fetch RASFF data' });

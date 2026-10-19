@@ -55,14 +55,14 @@ function riskDecisionToLevel(desc: string): string {
 /** Convertit "17-10-2026 21:09:08" -> "2026-10-17" */
 function toIsoDate(raw: string): string {
   if (!raw) return '';
-  const m = raw.match(/^(\d{2})-(\d{2})-(\d{2})/);
+  const m = raw.match(/^(\d{2})-(\d{2})-(\d{4})/);
   return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
 }
 
 /** "17-10-2026 21:09:08" -> "17-10-2026 00:00:00" (format attendu par csvParser.ts) */
 function toDisplayDate(raw: string): string {
   if (!raw) return '';
-  const m = raw.match(/^(\d{2})-(\d{2})-(\d{2})/);
+  const m = raw.match(/^(\d{2})-(\d{2})-(\d{4})/);
   return m ? `${m[1]}-${m[2]}-${m[3]} 00:00:00` : '';
 }
 

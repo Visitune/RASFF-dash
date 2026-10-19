@@ -186,7 +186,7 @@ function App() {
           <WeeklyDeltaBadge latestStats={latestStats} />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6 gap-12">
           <GlobalScoreCard data={filteredData} recentDelta={latestStats.delta} />
           {(() => {
             // Generate trend data for sparklines (last 30 days)
@@ -211,7 +211,7 @@ function App() {
           })()}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6 gap-12">
           <TrendChart data={filteredData} title="Évolution des alertes" />
 
           <div className="panel p-4">
@@ -273,7 +273,7 @@ function App() {
       />
       <FilterBar options={filters} setOptions={setFilters} availableCategories={categories} availableOrigins={origins} availableNotifyingCountries={notifyingCountries} />
       
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6 gap-12">
         <TemporalSummary data={filteredData} />
         <div className="panel p-6">
           <h3 className="section-title mb-1">Moyenne Mobile (7 jours)</h3>
@@ -284,7 +284,7 @@ function App() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6 gap-12">
         <BumpChart data={filteredData} />
         <div className="panel p-6">
           <h3 className="section-title mb-1">Jour de la Semaine</h3>
@@ -295,7 +295,7 @@ function App() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6 gap-12">
         <div className="panel p-6">
           <h3 className="section-title mb-1">Mois de l'Année</h3>
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
@@ -332,14 +332,14 @@ function App() {
       <FilterBar options={filters} setOptions={setFilters} availableCategories={categories} availableOrigins={origins} availableNotifyingCountries={notifyingCountries} />
       <WorldMap data={filteredData} onCountryClick={setSelectedCountry} />
       
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6 gap-12">
         <CountryRadarChart data={filteredData} selectedCountry={selectedCountry?.name} />
         <ChordDiagram data={filteredData} />
       </div>
 
       <ZoomableCirclePacking data={filteredData} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6 gap-12">
         <CountryEvolutionChart data={filteredData} />
         <SankeyDiagram data={filteredData} />
       </div>
@@ -368,17 +368,17 @@ function App() {
       
       <TreemapChart data={filteredData} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6 gap-12">
         <DistributionCharts data={filteredData} />
         <SeasonalChart data={filteredData} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6 gap-12">
         <AnomalyDetector data={filteredData} stats={stats} />
         <RiskHeatmap data={filteredData} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6 gap-12">
         <CorrelationMatrix data={filteredData} />
         <div className="panel p-6">
           <h3 className="section-title mb-3">Analyse Factorielle des Risques</h3>
@@ -414,7 +414,7 @@ function App() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6 gap-12">
         <ParetoChart data={filteredData} dimension="origin" title="Pareto des Origines (80/20)" />
         <ParetoChart data={filteredData} dimension="hazard" title="Pareto des Dangers (80/20)" />
       </div>
@@ -439,7 +439,7 @@ function App() {
         ]}
       />
       <FilterBar options={filters} setOptions={setFilters} availableCategories={categories} availableOrigins={origins} availableNotifyingCountries={notifyingCountries} />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6 gap-12">
         <HypothesisPanel selectedH={selectedHypothesis} onSelect={setSelectedHypothesis} />
         <div className="space-y-6">
           <HypothesisResult result={currentResult} />

@@ -1,71 +1,144 @@
-import fs from 'fs';
-  const lines = fs.readFileSync('rasff_data.tsv', 'utf-8').split('\n').filter(l => l.trim().length > 0);
-  const headers = lines[0].split('\t').map(h => h.trim());
-  const headerIndex = (name) => headers.findIndex(h => h.toLowerCase() === name.toLowerCase());
-  const readByHeader = (cols, name) => {
-    const idx = headerIndex(name);
-    return idx >= 0 && cols[idx] ? cols[idx].trim() : '';
+// ============================================================
+// Generate mockData.ts and rasff_data.tsv from FOOD-SAFETY-HORIZON-SCAN
+// (the repo that scrapes RASFF 2x/day via GitHub Actions)
+// Usage: node process.js
+// ============================================================
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = __dirname;
+
+const RECALLS_JSON_URL =
+  'https://raw.githubusercontent.com/Visitune/FOOD-SAFETY-HORIZON-SCAN/main/docs/data/recalls.json';
+
+function classificationToRisk(classification) {
+  const c = (classification || '').toLowerCase();
+  if (c.includes('not serious')) return 'Low';
+  if (c.includes('border rejection')) return 'Medium';
+  if (c.includes('alert')) return 'Serious';
+  if (c.includes('information')) return 'Medium';
+  return 'Medium';
+}
+
+function parseReasonField(raw) {
+  const s = raw || '';
+  const catMatch = s.match(/category:\s*([^;\n]+?)(?:;|$)/i);
+  const riskMatch = s.match(/risk:\s*([^;\n]+?)(?:;|$)/i);
+  const classMatch = s.match(/classification:\s*([^;\n]+?)(?:;|$)/i);
+  return {
+    category: catMatch ? catMatch[1].trim() : '',
+    risk: riskMatch ? riskMatch[1].trim() : '',
+    classification: classMatch ? classMatch[1].trim() : '',
   };
+}
 
-  const data = [];
-  for (let i = 1; i < lines.length && data.length < 500; i++) {
-    const cols = lines[i].split('\t');
-    if (cols.length < 5) continue;
-    
-    // Clean values
-    const id = cols[0] ? cols[0].trim() : '';
-    const category = cols[1] ? cols[1].trim() : 'Unknown';
-    const subject = cols[3] ? cols[3].trim() : 'Unknown';
-    const rawDate = cols[4] ? cols[4].trim() : '';
-    
-    let formattedDate = new Date().toISOString().split('T')[0];
-    if (rawDate) {
-      const parts = rawDate.split(' ')[0].split('-'); // DD, MM, YYYY
-      if (parts.length === 3) {
-        formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
-      }
-    }
+function parseCompanyField(raw) {
+  const s = raw || '';
+  const originMatch = s.match(/Origin:\s*([^|]+?)\s*\|\s*Notifying:/i);
+  const countryMatch = s.match(/Notifying:\s*(.+)$/i);
+  return {
+    origin: originMatch ? originMatch[1].trim() : '',
+    notifyingCountry: countryMatch ? countryMatch[1].trim() : '',
+  };
+}
 
-    const notifying_country = cols[5] ? cols[5].trim() : 'Unknown';
-    const status = cols[6] ? cols[6].trim() : 'notification';
-    const risk_level = cols[7] ? cols[7].trim() : 'undecided';
-    const notification_id =
-      readByHeader(cols, 'notification_id') ||
-      readByHeader(cols, 'notificationId') ||
-      readByHeader(cols, 'rasff_notification_id') ||
-      readByHeader(cols, 'detail_id');
-    const notification_url =
-      readByHeader(cols, 'notification_url') ||
-      readByHeader(cols, 'notificationUrl') ||
-      readByHeader(cols, 'detail_url') ||
-      readByHeader(cols, 'url') ||
-      (notification_id
-        ? `https://webgate.ec.europa.eu/rasff-window/screen/notification/${notification_id}`
-        : '');
-    
-    // Origin and Hazard are at varying positions at the end
-    const lastColId = cols.length - 1;
-    const origin = (cols[lastColId - 1] || cols[lastColId - 2] || 'Unknown').trim();
-    const hazard = (cols[lastColId] || cols[lastColId - 1] || subject).trim();
+function refFromNotes(notes) {
+  const m = (notes || '').match(/#(\d{4}\.\d+)/);
+  return m ? m[1] : '';
+}
 
-    data.push({
-      id,
-      date: formattedDate,
-      category,
-      product: subject.substring(0, 80) + (subject.length > 80 ? '...' : ''),
-      hazard: hazard.substring(0, 80) + (hazard.length > 80 ? '...' : ''),
-      origin,
-      notifying_country,
-      risk_level,
-      status,
-      notification_id,
-      notification_url,
-      // Keep a random value so that heatmaps/trend charts render nice continuous visual gradients correctly out of the box if they rely on it
-      value: Math.floor(Math.random() * 80 + 20) 
+function toDmyDate(dateRaw) {
+  const m = (dateRaw || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return dateRaw || '';
+  return `${m[3]}-${m[2]}-${m[1]} 00:00:00`;
+}
+
+function toIsoDate(dateRaw) {
+  const m = (dateRaw || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return '';
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
+async function main() {
+  console.log('Fetching RASFF data from FOOD-SAFETY-HORIZON-SCAN...');
+
+  const upstream = await fetch(RECALLS_JSON_URL, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!upstream.ok) throw new Error(`Upstream HTTP ${upstream.status}`);
+
+  const data = (await upstream.json()).filter(
+    (row) => row.Source && String(row.Source).toLowerCase().includes('rasff'),
+  );
+  console.log(`RASFF entries found: ${data.length}`);
+
+  // --- rasff_data.tsv ---
+  const header = [
+    'reference', 'category', 'type', 'subject', 'date', 'product', 'hazard',
+    'origin', 'notifying_country', 'risk_level', 'status',
+    'notification_id', 'notification_url', 'value',
+  ].join('\t');
+
+  const rows = data.map((entry) => {
+    const ref = refFromNotes(entry.Notes);
+    const parsed = parseReasonField(entry.Reason);
+    const company = parseCompanyField(entry.Company);
+    const type = parsed.classification || entry.Class || 'Unknown';
+    const riskLevel = classificationToRisk(parsed.classification || entry.Class);
+    const value = { Serious: 3, Medium: 2, Low: 1 }[riskLevel] ?? 1;
+    const notifId = entry.URL ? (entry.URL.split('/').pop() || '') : '';
+    return [
+      ref,
+      parsed.category || 'Unknown',
+      type,
+      entry.Product || '',
+      toDmyDate(entry.Date),
+      entry.Product || '',
+      entry.Pathogen || 'Unknown',
+      company.origin || 'Unknown',
+      company.notifyingCountry || 'Unknown',
+      riskLevel,
+      type,
+      notifId,
+      entry.URL || '',
+      String(value),
+    ].join('\t');
+  });
+
+  const tsvPath = path.join(PROJECT_ROOT, 'rasff_data.tsv');
+  fs.writeFileSync(tsvPath, [header, ...rows].join('\n') + '\n', 'utf8');
+  console.log(`Wrote ${tsvPath} (${rows.length} rows)`);
+
+  // --- src/lib/mockData.ts ---
+  const mockRows = data.map((entry) => {
+    const parsed = parseReasonField(entry.Reason);
+    const company = parseCompanyField(entry.Company);
+    const type = parsed.classification || entry.Class || 'Unknown';
+    const riskLevel = classificationToRisk(parsed.classification || entry.Class);
+    const value = { Serious: 3, Medium: 2, Low: 1 }[riskLevel] ?? 1;
+    return JSON.stringify({
+      id: refFromNotes(entry.Notes),
+      date: toIsoDate(entry.Date),
+      category: parsed.category || 'Unknown',
+      product: entry.Product || '',
+      hazard: entry.Pathogen || '',
+      origin: company.origin || 'Unknown',
+      notifying_country: company.notifyingCountry || 'Unknown',
+      risk_level: riskLevel,
+      status: type,
+      value,
+      notification_id: entry.URL ? entry.URL.split('/').pop() : undefined,
+      notification_url: entry.URL || undefined,
     });
-  }
+  }).join(',\n');
 
-  const outStr = `export interface RasffData {
+  const mockPath = path.join(PROJECT_ROOT, 'src', 'lib', 'mockData.ts');
+  fs.writeFileSync(
+    mockPath,
+    `export interface RasffData {
   id: string;
   date: string;
   category: string;
@@ -80,8 +153,18 @@ import fs from 'fs';
   notification_url?: string;
 }
 
-export const mockRasffData: RasffData[] = ${JSON.stringify(data, null, 2)};
-`;
+// AUTO-GENERATED from FOOD-SAFETY-HORIZON-SCAN (docs/data/recalls.json)
+// by \`node process.js\`. Do not edit by hand.
+export const mockRasffData: RasffData[] = [
+${mockRows}
+];
+`,
+    'utf8',
+  );
+  console.log(`Wrote ${mockPath} (${data.length} rows)`);
+}
 
-  fs.writeFileSync('src/lib/mockData.ts', outStr);
-  console.log('Real data injected! ' + data.length + ' rows parsed.');
+main().catch((err) => {
+  console.error('Error:', err);
+  process.exit(1);
+});

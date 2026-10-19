@@ -100,10 +100,9 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Top header */}
-        <header style={{
+         <header className="px-4 sm:px-6 lg:px-10 2xl:px-16" style={{
           background: 'var(--surface-1)',
           borderBottom: '1px solid var(--border)',
-          padding: '1rem',
           height: 52,
           display: 'flex',
           alignItems: 'center',
@@ -171,7 +170,6 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
         </header>
 
         {/* Main content — responsive padding + max-width */}
-        <main style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
           <div className="p-4 sm:px-6 lg:px-10 2xl:px-16 w-full">>
             <motion.div
               key={activeSection}

@@ -90,6 +90,7 @@ body {
 
 /* ─── Panel (replaces glass-panel) ────────────────────────────────────── */
 .panel {
+  padding: 1rem;/
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -106,6 +107,7 @@ body {
 
 /* ─── Metric Card (replaces glass-card / Card3D) ──────────────────────── */
 .metric-card {
+  padding: 1rem;/
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -120,6 +122,7 @@ body {
 
 /* legacy alias */
 .glass-card {
+  padding: 1rem;/
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 4px;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { NavMenu, PageSection } from '../navigation/NavMenu';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Menu, X } from 'lucide-react';
 
 interface PageLayoutProps {
   activeSection: PageSection;
@@ -28,6 +28,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
 }) => {
   const [light, setLight] = useState(() => localStorage.getItem('theme') === 'light');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     document.body.classList.toggle('light', light);
@@ -38,21 +39,71 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
     localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
   }, [sidebarCollapsed]);
 
+  // Close mobile menu on resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 768) setMobileMenuOpen(false);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
-      <NavMenu 
-        activeSection={activeSection} 
-        onSectionChange={onSectionChange} 
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(c => !c)}
-      />
+      {/* Mobile overlay */}
+      {mobileMenuOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(2px)',
+            zIndex: 40,
+            display: 'flex',
+            justifyContent: 'flex-end',
+          }}
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <div
+            style={{
+              width: 'min(280px, 80vw)',
+              height: '100%',
+              background: 'var(--surface-1)',
+              borderRight: '1px solid var(--border)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <NavMenu
+              activeSection={activeSection}
+              onSectionChange={(s) => { onSectionChange(s); setMobileMenuOpen(false); }}
+              collapsed={false}
+              onToggleCollapse={() => {}}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Desktop sidebar */}
+      <div
+        style={{
+          display: window.innerWidth > 768 ? 'block' : 'none',
+          flexShrink: 0,
+        }}
+      >
+        <NavMenu
+          activeSection={activeSection}
+          onSectionChange={onSectionChange}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(c => !c)}
+        />
+      </div>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Top header */}
         <header style={{
           background: 'var(--surface-1)',
           borderBottom: '1px solid var(--border)',
-          padding: '0 24px',
+          padding: '0 16px',
           height: 52,
           display: 'flex',
           alignItems: 'center',
@@ -66,6 +117,24 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
             transition={{ duration: 0.15 }}
             style={{ display: 'flex', alignItems: 'center', gap: 8 }}
           >
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              style={{
+                display: window.innerWidth > 768 ? 'none' : 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                width: 36, height: 36,
+                border: '1px solid var(--border-strong)',
+                borderRadius: 4,
+                background: 'var(--surface-2)',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              <Menu size={18} />
+            </button>
+
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>RASFF Dash</span>
             <span style={{ color: 'var(--border-strong)', fontSize: 12 }}>/</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -73,7 +142,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
             </span>
           </motion.div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             {extraHeaderContent}
 
             {/* Light / Dark toggle */}
@@ -101,9 +170,14 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
           </div>
         </header>
 
-        {/* Main content */}
-        <main style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-          <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+        {/* Main content — responsive padding + max-width */}
+        <main style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+          <div style={{
+            maxWidth: '100%',
+            margin: '0 auto',
+            width: '100%',
+            padding: '0 8px',
+          }}>
             <motion.div
               key={activeSection}
               initial={{ opacity: 0, y: 10 }}

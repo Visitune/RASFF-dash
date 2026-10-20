@@ -62,9 +62,18 @@ const MetricCard: React.FC<MetricCardProps> = ({ icon, label, value, accent, ind
           <p className="text-[10px] font-black uppercase tracking-widest text-muted mb-2">
             {label}
           </p>
-          <p className="text-2xl font-black text-primary leading-none tracking-tighter">
-            {isNumeric ? <CountUp value={numericValue} decimals={decimals} /> : value}
-          </p>
+          {isNumeric ? (
+            <p className="text-2xl font-black text-primary leading-none tracking-tighter">
+              <CountUp value={numericValue} decimals={decimals} />
+            </p>
+          ) : (
+            <span
+              className="badge"
+              style={{ background: accent === 'var(--red)' ? 'rgba(234,67,53,0.15)' : 'rgba(255,109,0,0.15)', color: accent, fontSize: 12, padding: '4px 10px' }}
+            >
+              {value}
+            </span>
+          )}
         </div>
         <div className="p-2 rounded-lg bg-surface-2" style={{ color: accent }}>
           {icon}
@@ -99,7 +108,7 @@ export const StatsSummary: React.FC<StatsSummaryProps> = ({ stats, trends }) => 
   const riskLabel = stats.mean > 8 ? 'Haute' : 'Modérée';
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
       <MetricCard
         index={0}
         icon={<Database size={18} />}

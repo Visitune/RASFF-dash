@@ -207,7 +207,7 @@ function App() {
               trends.count.push({ val: dayData.length });
             }
 
-            return <StatsSummary stats={stats} trends={trends} />;
+            return <div className="lg:col-span-3"><StatsSummary stats={stats} trends={trends} /></div>;
           })()}
         </div>
 

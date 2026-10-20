@@ -70,13 +70,14 @@ export const WorldMap: React.FC<WorldMapProps> = ({ data, onCountryClick }) => {
               {({ geographies }) =>
                 geographies.map((geo) => {
                   const countryName = geo.properties.name;
-                  const countryStats = stats.find(s => s.name === countryName || s.id === geo.id || s.id === geo.properties.iso_a3);
+                  const dataName = GEO_TOPO_ALIASES[countryName] ?? countryName;
+                  const countryStats = stats.find(s => s.name === dataName || s.name === countryName || s.id === geo.id);
                   
                   return (
                     <Geography
                       key={geo.rsmKey}
                       geography={geo}
-                      onMouseEnter={() => setHoveredCountry(countryName)}
+                      onMouseEnter={() => setHoveredCountry(dataName)}
                       onMouseLeave={() => setHoveredCountry(null)}
                       onClick={() => countryStats && onCountryClick(countryStats)}
                       style={{

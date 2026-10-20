@@ -20,6 +20,22 @@ const COUNTRY_ALIASES: Record<string, string> = {
   'unknown origin': 'Unknown',
 };
 
+// Names used by the world-atlas topojson (map side) → our data names
+export const GEO_TOPO_ALIASES: Record<string, string> = {
+  'United States of America': 'United States',
+  'Dem. Rep. Congo': 'Democratic Republic of the Congo',
+  'Central African Rep.': 'Central African Republic',
+  'Dominican Rep.': 'Dominican Republic',
+  'Eq. Guinea': 'Equatorial Guinea',
+  'eSwatini': 'Eswatini',
+  'S. Sudan': 'South Sudan',
+  'Solomon Is.': 'Solomon Islands',
+  'Bosnia and Herz.': 'Bosnia and Herzegovina',
+  'Czechia': 'Czech Republic',
+  'Macedonia': 'North Macedonia',
+  'Turkey': 'Turkey',
+};
+
 const normalizeCountryName = (value: string) => COUNTRY_ALIASES[value] || value;
 
 const extractOrigins = (origin: string) =>

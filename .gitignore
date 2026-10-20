@@ -10,3 +10,4 @@ coverage/
 tmp_*.js
 tmp_*.html
 rasff_data.tsv
+.vercel

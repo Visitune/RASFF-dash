@@ -8,7 +8,7 @@ import {
   ZoomableGroup
 } from 'react-simple-maps';
 import { scaleLinear } from 'd3-scale';
-import { getCountryStats, CountryStats } from '../../lib/geoEngine';
+import { getCountryStats, CountryStats, GEO_TOPO_ALIASES } from '../../lib/geoEngine';
 import { RasffData } from '../../lib/mockData';
 import { motion, AnimatePresence } from 'motion/react';
 

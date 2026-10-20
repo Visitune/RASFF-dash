@@ -103,6 +103,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
          <header className="px-4 sm:px-6 lg:px-10 2xl:px-16" style={{
           background: 'var(--surface-1)',
           borderBottom: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-1)',
           height: 52,
           display: 'flex',
           alignItems: 'center',
@@ -134,8 +135,8 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
               <Menu size={18} />
             </button>
 
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>RASFF Dash</span>
-            <span style={{ color: 'var(--border-strong)', fontSize: 12 }}>/</span>
+            <span className="hidden md:inline" style={{ fontSize: 12, color: 'var(--text-muted)' }}>RASFF Dash</span>
+            <span className="hidden md:inline" style={{ color: 'var(--border-strong)', fontSize: 12 }}>/</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
               {sectionLabels[activeSection]}
             </span>
@@ -164,13 +165,14 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--green)' }} />
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Synchronisé</span>
+              <span className="hidden sm:inline" style={{ fontSize: 11, color: 'var(--text-muted)' }}>Synchronisé</span>
             </div>
           </div>
         </header>
 
-        {/* Main content — responsive padding + max-width */}
-          <div className="p-4 sm:px-6 lg:px-10 2xl:px-16 w-full">
+        {/* Main content — responsive padding + full width */}
+        <main style={{ flex: 1, overflowY: 'auto' }}>
+          <div className="p-4 sm:px-6 sm:py-5 lg:px-10 2xl:px-16 w-full">
             <motion.div
               key={activeSection}
               initial={{ opacity: 0, y: 10 }}

@@ -101,7 +101,8 @@ body {
 .glass-panel {
   background: var(--surface-1);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 8px;
+  padding: 1.25rem;
   box-shadow: var(--shadow-1);
 }
 
@@ -130,10 +131,9 @@ body {
 }
 
 .glass-card:hover {
-  background: var(--surface-3);
+  transform: translateY(-2px);
   border-color: var(--border-strong);
   box-shadow: var(--shadow-2);
-  transform: none;
 }
 
 /* ─── Navigation Sidebar ───────────────────────────────────────────────── */
@@ -177,7 +177,7 @@ body {
   background: var(--blue);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 8px 16px;
   font-size: 13px;
   font-weight: 500;
@@ -192,7 +192,8 @@ body {
   background: transparent;
   color: var(--text-secondary);
   border: 1px solid var(--border-strong);
-  border-radius: 4px;
+  border-radius: 6px;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
   padding: 7px 14px;
   font-size: 13px;
   font-weight: 500;
@@ -227,11 +228,11 @@ body {
 /* ─── Section Title ────────────────────────────────────────────────────── */
 .section-title {
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
 }
 
 /* ─── Divider ──────────────────────────────────────────────────────────── */
@@ -551,4 +552,16 @@ body.light .badge-gray {
 /* Guide icons */
 .guide-icon {
   color: var(--blue) !important;
+}
+
+
+/* ─── Pro polish ─────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: rgba(66,133,244,.30);
 }
